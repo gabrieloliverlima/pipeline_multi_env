@@ -1,128 +1,162 @@
-# APLICAÇÃO KUBENEWS COM K8S
+# 🚀 Automação de Deploy com GitHub Actions: CI/CD Multiambiente no Kubernetes
 
-Este repositório contém os manifestos do Kubernetes e o Dockerfile para implantação do aplicativo KubeNews e seu banco de dados PostgreSQL.
-
-## Índice
-
-- [Visão Geral da Arquitetura](#visão-geral-da-arquitetura)
-- [Objetivo do Projeto](#objetivo-do-projeto)
-- [Pré-requisitos](#pré-requisitos)
-- [Instruções de Configuração](#instruções-de-configuração)
-- [Manifestos do Kubernetes](#manifestos-do-kubernetes)
-  - [Implantação e Serviço do PostgreSQL](#implantação-e-serviço-do-postgresql)
-  - [Implantação e Serviço do KubeNews](#implantação-e-serviço-do-kubenews)
-- [Dockerfile](#dockerfile)
-- [Variáveis de Ambiente](#variáveis-de-ambiente)
-- [Acessando o Aplicativo](#acessando-o-aplicativo)
-
-## Visão Geral da Arquitetura
-
-O aplicativo KubeNews é construído em um backend Node.js e usa PostgreSQL como seu banco de dados. A arquitetura consiste em:
-
-- Um banco de dados PostgreSQL implantado em um cluster Kubernetes.
-- Um aplicativo Node.js containerizado e implantado no mesmo cluster.
-
-## Objetivo do Projeto
-
-O projeto KubeNews é uma aplicação escrita em NodeJS e tem como objetivo ser uma aplicação de exemplo para trabalhar com o uso de containers.
-
-O Secret foi criado via linha de comando para manter boas práticas:
-```bash
-kubectl create secret generic kubenews-secret \
-  --from-literal=DB_DATABASE=kubenews \
-  --from-literal=DB_USERNAME=kubenews \
-  --from-literal=DB_PASSWORD=Pg123 \
-  --from-literal=DB_HOST=postgresql \
-  --from-literal=POSTGRES_DB=kubenews \
-  --from-literal=POSTGRES_PASSWORD=Pg123 \
-  --from-literal=POSTGRES_USER=kubenews
-```
-
-## Pré-requisitos
-
-- Configuração de um cluster Kubernetes (ex.: Minikube, AKS, EKS ou GKE).
-- CLI `kubectl` instalado e configurado.
-- Docker instalado para construir a imagem do aplicativo.
-
-## Instruções de Configuração
-
-1. **Clone o repositório:**
-   ```bash
-   git clone <url-do-repositorio>
-   cd <diretorio-do-repositorio>
-   ```
-
-2. **Construa a imagem Docker:**
-   ```bash
-   docker build -t <seu-usuario-dockerhub>/k8s-kube-news:v1 .
-   ```
-
-3. **Envie a imagem para o Docker Hub:**
-   ```bash
-   docker push <seu-usuario-dockerhub>/k8s-kube-news:v1
-   ```
-
-4. **Aplique os manifestos do Kubernetes:**
-   ```bash
-   kubectl apply -f deployment.yaml
-   ```
-
-5. **Verifique as implantações:**
-   ```bash
-   kubectl get pods
-   ```
-
-## Manifestos do Kubernetes
-
-### Implantação e Serviço do PostgreSQL
-
-O banco de dados PostgreSQL é implantado com as seguintes características:
-
-- Imagem: `postgres:14.15-alpine3.21`
-- Recursos:
-  - Limite de Memória: 128Mi
-  - Limite de CPU: 500m
-- O serviço expõe o banco de dados na porta `5432`.
-
-### Implantação e Serviço do KubeNews
-
-O aplicativo Node.js é implantado com:
-
-- Imagem: `gabrieloliver001/k8s-kube-news:v1`
-- Recursos:
-  - Limite de Memória: 128Mi
-  - Limite de CPU: 500m
-- O serviço expõe o aplicativo na porta `32000` (NodePort).
-
-## Dockerfile
-
-O Dockerfile do aplicativo:
-
-```dockerfile
-FROM node:22.12.0-alpine3.20
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 8080
-CMD ["node", "server.js"]
-```
-
-## Acessando o Aplicativo
-
-Uma vez implantado, o aplicativo pode ser acessado através do serviço NodePort:
-
-1. **Encontre o NodePort:**
-   ```bash
-   kubectl get svc app-kubenews
-   ```
-
-2. **Acesse o aplicativo:**
-   Abra seu navegador e navegue para `http://<ip-do-node>:32000`.
-
-Substitua `<ip-do-node>` pelo IP do seu nó Kubernetes.
+Este projeto realiza o **provisionamento de um cluster Kubernetes na DigitalOcean com Terraform** e o **deploy automatizado** de uma aplicação Node.js + PostgreSQL usando **GitHub Actions**, com ambientes separados para **Homologação** e **Produção**, organizados por **namespaces Kubernetes**.
 
 ---
 
-Fique à vontade para relatar problemas ou contribuir com este repositório!
+## 📦 Tecnologias Utilizadas
 
+- [Terraform](https://www.terraform.io/)
+- [DigitalOcean Kubernetes](https://www.digitalocean.com/products/kubernetes)
+- [Kubernetes](https://kubernetes.io/)
+- [GitHub Actions](https://github.com/features/actions)
+- [Docker Hub](https://hub.docker.com/)
+
+---
+
+## ⚙️ Arquitetura CI/CD
+
+A pipeline é composta por dois workflows:
+
+### ✅ CI - Build e Push da Imagem
+
+O workflow principal realiza:
+
+- Checkout do código
+- Login no Docker Hub
+- Build da imagem da aplicação Node.js (`/src`)
+- Push da imagem com tag `v1.<RUN_NUMBER>` e `latest`
+
+### 🚀 CD - Deploy com Reaproveitamento de Código
+
+Após o CI, o workflow chama um **workflow reutilizável** (`deploy.yml`) que:
+
+- Seta o contexto do cluster
+- Garante que o namespace (`homolog` ou `producao`) exista
+- Aplica os manifestos YAML no namespace correspondente
+- Substitui dinamicamente a imagem da aplicação via input `images`
+
+Isso garante que o mesmo código de deploy seja reaproveitado para múltiplos ambientes com apenas **1 definição de pipeline**.
+
+---
+
+## 🧪 Ambientes Separados por Namespace
+
+A separação de ambientes é feita via **namespaces Kubernetes**, garantindo isolamento de recursos:
+
+- `homolog` → ambiente de testes e validações
+- `producao` → ambiente real de produção
+
+O namespace é passado dinamicamente via GitHub Actions com a variável `APP_NAMESPACE`.
+
+> Exemplo no deploy:
+```yaml
+with:
+  manifests: k8s/deployment.yaml
+  images: gabrieloliver001/k8s-kube-news:v1.${{ github.run_number }}
+  environment: homolog
+```
+
+---
+
+## 🌐 Estrutura do Projeto
+
+```
+.
+├── .github/
+│   └── workflows/
+│       ├── main.yml             # CI build e Push da Image
+│       └── deploy.yml            # Workflow reutilizável de deploy
+├── terraform_k8s/
+│   ├── main.tf                   # Provisionamento do cluster
+│   ├── variables.tf
+│   └── terraform.tfvars
+├── k8s/
+│   └── deployment.yaml           # Manifests Kubernetes (PostgreSQL + App)
+├── src/                          # Código-fonte da aplicação Node.js
+├── Dockerfile
+└── README.md
+```
+
+---
+
+## 🚀 Passo a passo
+
+### 1️⃣ Provisionar o cluster com Terraform
+
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+Isso cria o cluster Kubernetes na DigitalOcean.
+
+---
+
+### 2️⃣ Configurar `kubectl`
+
+```bash
+terraform output kubeconfig > ~/.kube/config
+export KUBECONFIG=~/.kube/config
+```
+
+---
+
+### 3️⃣ Criar Secrets Kubernetes (via GitHub Actions ou manual)
+
+Crie um secret contendo as variáveis de ambiente do PostgreSQL:
+
+```bash
+kubectl create namespace homolog
+kubectl create namespace producao
+
+kubectl create secret generic kubenews-secret \
+  --from-literal=POSTGRES_DB=kubenews \
+  --from-literal=POSTGRES_USER=admin \
+  --from-literal=POSTGRES_PASSWORD=admin123 \
+  -n homolog
+
+kubectl create secret generic kubenews-secret \
+  --from-literal=POSTGRES_DB=kubenews \
+  --from-literal=POSTGRES_USER=admin \
+  --from-literal=POSTGRES_PASSWORD=admin123 \
+  -n producao
+```
+
+---
+
+### 4️⃣ Configurar Variáveis e Segredos no GitHub
+
+**Secrets (Settings → Secrets and Variables → Actions):**
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+- `KUBECONFIG_MYCLUSTER` → conteúdo do kubeconfig (salvar como secret multi-line)
+
+**Environments (`homolog` e `producao`) → Adicionar variável:**
+
+- `APP_NAMESPACE` = `homolog` ou `producao` (para cada ambiente)
+
+---
+
+### 5️⃣ Push para branch `main` → CI/CD automático!
+
+Ao fazer push para a branch `main`, o GitHub Actions:
+
+1. Constrói a imagem e envia para o Docker Hub
+2. Faz o deploy da aplicação em **homolog**
+3. Em seguida, faz o deploy da aplicação em **produção**
+
+---
+
+## ✅ Verificando o Deploy
+
+Acompanhe os serviços:
+
+```bash
+kubectl get svc -n homolog
+kubectl get svc -n producao
+```
+
+Acesse o IP externo gerado pelo `LoadBalancer` de cada service para acessar a aplicação.
