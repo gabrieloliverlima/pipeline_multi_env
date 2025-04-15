@@ -21,6 +21,9 @@ jobs:
       with:
         method: kubeconfig
         kubeconfig: ${{ secrets.KUBECONFIG_MYCLUSTER }}
+    - name: Create namespace if not exists
+      run: |
+        kubectl get namespace kubenews || kubectl create namespace kubenews    
     - name: Deploy Kube News
       uses: Azure/k8s-deploy@v5.0.1
       with:
