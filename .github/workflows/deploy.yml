@@ -10,9 +10,15 @@ on:
         type: string
         required: true
         description: "Imagens que serão alteradas nos Manifestos"
+      environment:
+        type: string
+        required: true
+        description: "Nome do ambiente utilizado"
+
 jobs:
   Deploy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
     - name: Obtendo Código
       uses: actions/checkout@v4.2.2
@@ -23,10 +29,11 @@ jobs:
         kubeconfig: ${{ secrets.KUBECONFIG_MYCLUSTER }}
     - name: Create namespace if not exists
       run: |
-        kubectl get namespace kubenews || kubectl create namespace kubenews    
+        kubectl get namespace homolog || kubectl create namespace homolog  
+        kubectl get namespace producao || kubectl create namespace producao  
     - name: Deploy Kube News
       uses: Azure/k8s-deploy@v5.0.1
       with:
-        namespace: 'kubenews'
+        namespace: ${{ vars.APP_NAMESPACE}}
         manifests: ${{ inputs.manifests }}
         images: ${{ inputs.images }}

@@ -24,11 +24,20 @@ jobs:
           gabrieloliver001/k8s-kube-news:v1.${{ github.run_number }}
           gabrieloliver001/k8s-kube-news:latest
   
-  CD:
+  CD-Homolog:
     needs: [CI]
     uses: gabrieloliverlima/pipeline_multi_env/.github/workflows/deploy.yml@main
     with:
       manifests: k8s/deployment.yaml
       images: gabrieloliver001/k8s-kube-news:v1.${{ github.run_number }}
+      environment: homolog
     secrets: inherit
-    
+
+  CD-Producao:
+    needs: [CI]
+    uses: gabrieloliverlima/pipeline_multi_env/.github/workflows/deploy.yml@main
+    with:
+      manifests: k8s/deployment.yaml
+      images: gabrieloliver001/k8s-kube-news:v1.${{ github.run_number }}
+      environment: producao
+    secrets: inherit
