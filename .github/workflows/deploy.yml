@@ -1,0 +1,29 @@
+name: Deploy no K8s DigitalOcean
+on: 
+  workflow_call:
+    inputs:
+      manifests:
+        type: string
+        required: true
+        description: "Arquivo de Manifesto para Deploy"
+      images:
+        type: string
+        required: true
+        description: "Imagens que serão alteradas nos Manifestos"
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Obtendo Código
+      uses: actions/checkout@v4.2.2
+    - name: Kubeconfig
+      uses: azure/k8s-set-context@v4.0.1
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBECONFIG_MYCLUSTER }}
+    - name: Deploy Kube News
+      uses: Azure/k8s-deploy@v5.0.1
+      with:
+        namespace: 'kubenews'
+        manifests: ${{ inputs.manifests }}
+        images: ${{ inputs.images }}

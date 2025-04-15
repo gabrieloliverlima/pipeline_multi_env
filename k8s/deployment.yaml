@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+spec:
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgres:14.15-alpine3.21
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - secretRef:
+            name: kubenews-secret
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  selector:
+    app: postgresql
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-kubenews
+spec:
+  selector:
+    matchLabels:
+      app: app-kubenews
+  template:
+    metadata:
+      labels:
+        app: app-kubenews
+    spec:
+      containers:
+      - name: app-kubenews
+        image: gabrieloliver001/k8s-kube-news
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - secretRef:
+            name: kubenews-secret
+
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-kubenews
+spec:
+  selector:
+    app: app-kubenews
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 32000
+  type: NodePort
+
