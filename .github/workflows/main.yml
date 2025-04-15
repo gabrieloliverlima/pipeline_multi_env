@@ -1,4 +1,4 @@
-name: Deploy
+name: CI 
 on: 
   push:
     branches: ["main"]
@@ -25,18 +25,10 @@ jobs:
           gabrieloliver001/k8s-kube-news:latest
   
   CD:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Obtendo Código
-      uses: actions/checkout@v4.2.2
-    - name: Kubeconfig
-      uses: azure/k8s-set-context@v4.0.1
-      with:
-        method: kubeconfig
-        kubeconfig: ${{ secrets.KUBECONFIG_MYCLUSTER }}
-    - name: Deploy Kube News
-      uses: Azure/k8s-deploy@v5.0.1
-      with:
-        namespace: 'kubenews'
-        manifests: ./k8s/deployment.yaml
-        images: gabrieloliver001/k8s-kube-news:v1.${{ github.run_number }}
+    needs: [CI]
+    uses: gabrieloliverlima/pipeline_multi_env/.github/workflows/deploy.yml@main
+    with:
+      manifests: k8s/deployment.yaml
+      images: gabrieloliver001/k8s-kube-news:v1.${{ github.run_number }}
+    secrets: inherit
+    
